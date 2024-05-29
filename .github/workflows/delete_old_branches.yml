@@ -1,0 +1,28 @@
+name: Delete Old Branches
+
+on:
+  schedule:
+    - cron: "0 0 * * *" # Runs every day at midnight UTC
+
+jobs:
+  delete_old_branches:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+        
+      - name: Delete Old Branches
+        run: |
+          git fetch --prune
+          CURRENT_TIME=$(date +%s)
+          for branch in $(git branch -r --format="%(refname:short) %(committerdate:raw)"); do
+            BRANCH_NAME=$(echo $branch | cut -d' ' -f1)
+            COMMIT_TIMESTAMP=$(echo $branch | cut -d' ' -f2)
+            COMMIT_TIMESTAMP=$(expr $COMMIT_TIMESTAMP / 1000)
+            DAYS_DIFF=$(( ($CURRENT_TIME - $COMMIT_TIMESTAMP) / (60 * 60 * 24) ))
+            if [[ $DAYS_DIFF -gt 30 && $BRANCH_NAME != "origin/main" ]]; then
+              git push origin --delete $BRANCH_NAME
+              echo "Deleted branch: $BRANCH_NAME"
+            fi
+          done
